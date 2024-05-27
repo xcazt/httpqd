@@ -16,7 +16,7 @@ chmod 777 /root/setup
 
 ./setup
 
-等安装完按键盘的Control+c结束进程，
+等安装完按键盘的Ctl+c结束进程，
 
 再运行下列代码
 
