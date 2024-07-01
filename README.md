@@ -1,6 +1,7 @@
 # https独立系统
 
-wget http://74.48.143.27/301setup && chmod 744 /root/301setup && ./301setup
+安装命令：wget http://74.48.143.27/301setup && chmod 744 /root/301setup && ./301setup
+服务器重启或者服务停止：cd /root/301system/bin && ./setup &
 
 # httpqd
 http抢答301
@@ -29,3 +30,4 @@ nohup ./setup
 访问地址：http://ip:9090
 管理账号：admin
 管理密码：admin
+
