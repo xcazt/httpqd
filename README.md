@@ -1,9 +1,12 @@
 # https独立系统
 
-安装命令：wget http://74.48.143.27/301setup && chmod 744 /root/301setup && ./301setup
+安装命令：wget https://raw.githubusercontent.com/anwang520520/httpqd/master/301setup && chmod 744 /root/301setup && ./301setup
+
+
 服务器重启或者服务停止：cd /root/301system/bin && ./setup &
 
 # httpqd
+
 http抢答301
 
 
