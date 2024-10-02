@@ -30,7 +30,19 @@ chmod 777 /root/setup
 
 nohup ./setup
 
+
 访问地址：http://ip:9090
 管理账号：admin
 管理密码：admin
+
+
+# centos
+
+wget https://raw.githubusercontent.com/anwang520520/httpqd/master/xz-libs-5.2.2-1.el7.x86_64.rpm
+
+sudo rpm -Uvh xz-libs-5.2.2-1.el7.x86_64.rpm
+
+sudo reboot
+
+wget https://raw.githubusercontent.com/anwang520520/httpqd/master/xz-5.2.2-1.el7.x86_64.rpm
 
