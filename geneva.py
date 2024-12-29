@@ -1,125 +1,129 @@
 #!/usr/bin/env python3
-
-import os
 import signal
+import sys
+import logging
+import asyncio
 from scapy.all import *
 from netfilterqueue import NetfilterQueue
 import argparse
-import sys
-import threading
+from collections import defaultdict
 import traceback
 
-
-window_size = 17
-edit_times = {}
-window_scale = 7
-confusion_times = 7
+# 设置日志配置
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def clear_window_scale(ip_layer):
-    if ip_layer.haslayer(TCP):
-        tcp_layer = ip_layer[TCP]
-        tcp_options = tcp_layer.options
-        new_options = []
-        for i in range(len(tcp_options)):
-            if tcp_options[i][0] == 'WScale':
-                continue
-            new_options.append(tcp_options[i])
-        tcp_layer.options = new_options
-    return ip_layer
+class TCPModifier:
+    def __init__(self, window_size, window_scale, confusion_times):
+        self.window_size = window_size
+        self.window_scale = window_scale
+        self.confusion_times = confusion_times
+        self.edit_times = defaultdict(int)
+        self.loop = asyncio.get_event_loop()
+
+    def clear_window_scale(self, ip_layer):
+        """清除TCP选项中的WScale"""
+        if ip_layer.haslayer(TCP):
+            tcp_layer = ip_layer[TCP]
+            tcp_layer.options = [opt for opt in tcp_layer.options if opt[0] != 'WScale']
+        return ip_layer
+
+    def update_checksum(self, ip_pkt):
+        """更新校验和"""
+        del ip_pkt[IP].chksum
+        del ip_pkt[TCP].chksum
+        return bytes(ip_pkt)
+
+    async def send_payloads(self, ip):
+        """异步发送混淆数据包"""
+        tasks = []
+        for i in range(1, self.confusion_times + 1):
+            _win_size = self.window_size if i != self.confusion_times else 65535
+            ack_packet = IP(src=ip.dst, dst=ip.src) / TCP(
+                sport=ip[TCP].dport,
+                dport=ip[TCP].sport,
+                flags="A",
+                ack=ip[TCP].seq + i,
+                window=_win_size,
+                options=[('WScale', self.window_scale), ('NOP', '')] * 5
+            )
+            tasks.append(self.loop.run_in_executor(None, send, ack_packet, False))
+        await asyncio.gather(*tasks)
+
+    def clean_edit_times(self):
+        """定期清理 edit_times 中未使用的键值"""
+        keys_to_remove = []
+        for key, count in self.edit_times.items():
+            if count > 100:  # 自定义条件，假设超过 100 次后清理
+                keys_to_remove.append(key)
+        for key in keys_to_remove:
+            del self.edit_times[key]
+
+    def modify_window(self, pkt):
+        """修改TCP窗口大小"""
+        try:
+            ip = IP(pkt.get_payload())
+            if ip.haslayer(TCP):
+                key = (ip.dst, ip[TCP].dport)  # 使用元组作为键
+                sa_flag = False
+
+                if ip[TCP].flags == "SA":  # SYN-ACK 包
+                    self.edit_times[key] = 1
+                    ip = self.clear_window_scale(ip)
+                    ip[TCP].window = self.window_size
+                    sa_flag = True
+                else:  # 其他 TCP 包
+                    if key not in self.edit_times:
+                        self.edit_times[key] = 1
+                    if ip[TCP].flags in ["FA", "PA", "A"]:
+                        ip[TCP].window = self.window_size if self.edit_times[key] <= 6 else 28960
+                        self.edit_times[key] += 1
+
+                # 更新校验和并设置包负载
+                pkt.set_payload(self.update_checksum(ip))
+
+                # 如果是 SYN-ACK 包，则发送混淆数据包
+                if sa_flag and self.confusion_times > 0:
+                    asyncio.run_coroutine_threadsafe(self.send_payloads(ip), self.loop)
+            pkt.accept()
+        except Exception:
+            logging.error(f"Error processing packet: {traceback.format_exc()}")
+            pkt.drop()
 
 
-def modify_window(pkt):
-    global edit_times
-    try:
-        ip = IP(pkt.get_payload())
-        sa = False
+def parse_args():
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(description='TCP Window Size Modifier')
+    parser.add_argument('-q', '--queue', type=int, required=True, help='iptables Queue Number')
+    parser.add_argument('-w', '--window_size', type=int, required=True, help='TCP Window Size')
+    parser.add_argument('-s', '--window_scale', type=int, help='TCP Window Scale', default=7)
+    parser.add_argument('-c', '--confusion_times', type=int, help='Number of Confusion Packets', default=7)
+    parser.add_argument('--log_level', type=str, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], default='WARNING',
+                        help='Set the log level')
+    return parser.parse_args()
 
-        if ip.haslayer(TCP):
-            key = f"{ip.dst}_{ip[TCP].dport}"
-
-            if ip.haslayer(TCP) and ip[TCP].flags == "SA":
-                edit_times[key] = 1
-                ip = clear_window_scale(ip)
-                ip[TCP].window = window_size
-                del ip[IP].chksum
-                del ip[TCP].chksum
-                pkt.set_payload(bytes(ip))
-                sa = True
-
-            elif ip.haslayer(TCP) and ip[TCP].flags == "FA":
-                ip[TCP].window = window_size
-                del ip[IP].chksum
-                del ip[TCP].chksum
-                pkt.set_payload(bytes(ip))
-            elif ip.haslayer(TCP) and ip[TCP].flags == "PA":
-                ip[TCP].window = window_size
-                del ip[IP].chksum
-                del ip[TCP].chksum
-                pkt.set_payload(bytes(ip))
-            elif ip.haslayer(TCP) and ip[TCP].flags == "A":
-                if not key in edit_times:
-                    edit_times[key] = 1
-                if edit_times[key] <= 6:
-                    ip[TCP].window = window_size
-                else:
-                    ip[TCP].window = 28960
-                edit_times[key] += 1
-                del ip[IP].chksum
-                del ip[TCP].chksum
-                pkt.set_payload(bytes(ip))
-
-    except Exception as e:
-        print(traceback.format_exc())
-
-    if sa:
-        thread = threading.Thread(target=send_payloads, args=(ip, ))
-        thread.start()
-    pkt.accept()
-
-
-def send_payloads(ip):
-    if confusion_times < 1:
-        return 
-    for i in range(1,confusion_times+1):
-        _win_size = window_size
-        if i == confusion_times:
-            _win_size = 65535
-        ack_packet = IP(src=ip.dst, dst=ip.src) / TCP(sport=ip[TCP].dport, dport=ip[TCP].sport, flags="A", ack=ip[TCP].seq +i, window=_win_size, options=[('WScale', window_scale)] + [('NOP', '')] * 5)
-        send(ack_packet, verbose=False)
-
-def parsearg():
-    global window_size
-    global window_scale
-    global confusion_times
-    parser = argparse.ArgumentParser(description='Description of your program')
-
-    parser.add_argument('-q', '--queue', type=int, help='iptables Queue Num')
-    parser.add_argument('-w', '--window_size', type=int, help='Tcp Window Size')
-    parser.add_argument('-s', '--window_scale', type=int, help='Tcp Window Scale')
-    parser.add_argument('-c', '--confusion_times', type=int, help='confusion_times')
-
-    args = parser.parse_args()
-
-    if args.queue is None or args.window_size is None:
-        exit(1)
-
-    window_size = args.window_size
-    window_scale = args.window_scale
-    confusion_times = args.confusion_times
-
-    return args.queue
 
 def main():
-    queue_num = parsearg()
+    """主函数"""
+    args = parse_args()
+    logging.getLogger().setLevel(getattr(logging, args.log_level.upper(), logging.WARNING))
+    modifier = TCPModifier(args.window_size, args.window_scale, args.confusion_times)
+
+    # 启动事件循环
+    loop = modifier.loop
+    loop.create_task(loop.run_in_executor(None, modifier.clean_edit_times))  # 替代 asyncio.to_thread
+
     nfqueue = NetfilterQueue()
-    nfqueue.bind(queue_num, modify_window)
+    nfqueue.bind(args.queue, modifier.modify_window)
 
     try:
-        print("Starting netfilter_queue process...")
+        logging.info("Starting netfilter_queue process...")
         nfqueue.run()
     except KeyboardInterrupt:
         pass
+    finally:
+        nfqueue.unbind()
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, lambda signal, frame: sys.exit(0))
