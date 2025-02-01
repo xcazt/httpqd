@@ -1,13 +1,29 @@
-# https独立系统
+# http抢答，多域名版
 
-安装命令：wget https://raw.githubusercontent.com/anwang520520/httpqd/master/301setup && chmod 744 /root/301setup && ./301setup
+http抢答，多域名版,系统ubutu22.04
 
+使用方法： 
+## 第一步下载运行软件：
+````
+wget https://raw.githubusercontent.com/anwang520520/httpqd/master/301qd/301qd
+````
+## 第二步开权限：
+````
+chmod 777 /root/301qd
+````
+## 再运行下列代码
+````
+nohup ./301qd > 301qd.log 2>&1 &
+````
+## 访问地址：http://ip:8090
 
-服务器重启或者服务停止：cd /root/301system/bin && ./setup &
+管理账号：admin
 
-# httpqd
+管理密码：admin888
 
-http抢答301,系统ubutu22.04
+# http真301
+
+http真301,系统ubutu22.04
 
 使用方法： 第一步下载运行软件：
 ````
@@ -25,6 +41,12 @@ nohup ./z301 > z301.log 2>&1 &
 管理账号：admin 
 管理密码：admin888
 
+# https独立系统
+
+安装命令：wget https://raw.githubusercontent.com/anwang520520/httpqd/master/301setup && chmod 744 /root/301setup && ./301setup
+
+
+服务器重启或者服务停止：cd /root/301system/bin && ./setup &
 
 
 # centos
