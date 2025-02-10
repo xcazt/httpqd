@@ -2,7 +2,7 @@
 
 ## 下载：
 ````
-wget https://raw.githubusercontent.com/anwang520520/httpqd/master/geneva.py && chmod 744 /root/geneva.py
+wget https://raw.githubusercontent.com/anwang520520/httpqd/master/gyd/geneva.py && chmod 744 /root/geneva.py
 
 ````
 ## 运行：
