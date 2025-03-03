@@ -13,7 +13,7 @@ chmod 777 /root/301qd
 ````
 ## 再运行下列代码
 ````
-nohup ./301qd > 301qd.log 2>&1 &
+nohup ./301qd <license_key> > 301qd.log 2>&1 &
 ````
 ## 访问地址：http://ip:8080
 
