@@ -5,7 +5,7 @@
 使用方法： 
 ## 第一步下载运行软件：
 ````
-wget https://raw.githubusercontent.com/anwang520520/httpqd/master/301qd/301qd
+wget https://raw.githubusercontent.com/xcazt/httpqd/master/301qd/301qd
 ````
 ## 第二步开权限：
 ````
