@@ -1,7 +1,0 @@
-{
-  "ListenAddr":"0.0.0.0:80",
-  "RedirectMapping":{
-    "www.hao123.com":"https:\/\/www.baidu.com",
-    "hao123.com":"https:\/\/www.baidu.com"
-  }
-}
