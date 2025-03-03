@@ -15,7 +15,7 @@ chmod 777 /root/301qd
 ````
 nohup ./301qd > 301qd.log 2>&1 &
 ````
-## 访问地址：http://ip:8090
+## 访问地址：http://ip:8080
 
 管理账号：admin
 
