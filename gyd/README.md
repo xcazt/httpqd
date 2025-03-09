@@ -1,11 +1,17 @@
-# 过移动
+# cdn过移动
 
-## 下载：
+2921a95e-045e-67e4-dce2-ac7c681df975
+
+## ⒈下载：
 ````
-wget https://raw.githubusercontent.com/anwang520520/httpqd/master/gyd/geneva.py && chmod 744 /root/geneva.py
+wget https://raw.githubusercontent.com/anwang520520/httpqd/master/gyd/gyd && chmod 744 /root/gyd
 
 ````
-## 运行：
+## ⒉环境安装
 ````
-python3 geneva.py -q 80 -w 3 -s 2 -c 2
+yum install -y python3 python3-devel gcc gcc-c++ git libnetfilter* libffi-devel && pip3 install --upgrade pip && pip3 install scapy netfilterqueue
+````
+## ⒊后台运行：
+````
+nohup ./gyd > gyd.log 2>&1 &
 ````
